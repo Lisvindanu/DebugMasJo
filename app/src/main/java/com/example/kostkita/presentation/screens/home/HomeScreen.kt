@@ -18,7 +18,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.*
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -53,9 +52,6 @@ fun HomeScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Dashboard", "Statistik", "Aktivitas")
 
-    // Animated gradient background
-    rememberInfiniteTransition()
-
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface
     ) { paddingValues ->
@@ -70,41 +66,25 @@ fun HomeScreen(
                     .padding(paddingValues),
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
-                // Animated Header
+                // Header
                 item {
-                    AnimatedHeaderSection()
+                    HeaderSection()
                 }
 
                 // Tab Row
                 item {
-                    ScrollableTabRow(
-                        selectedTabIndex = selectedTab,
-                        modifier = Modifier.padding(vertical = 16.dp),
-                        edgePadding = 16.dp,
-                        containerColor = Color.Transparent,
-                        divider = {}
-                    ) {
-                        tabs.forEachIndexed { index, title ->
-                            Tab(
-                                selected = selectedTab == index,
-                                onClick = { selectedTab = index },
-                                modifier = Modifier.padding(horizontal = 4.dp)
-                            ) {
-                                AnimatedTabItem(
-                                    title = title,
-                                    isSelected = selectedTab == index
-                                )
-                            }
-                        }
-                    }
+                    TabSection(
+                        selectedTab = selectedTab,
+                        tabs = tabs,
+                        onTabSelected = { selectedTab = it }
+                    )
                 }
 
                 // Content based on selected tab
                 when (selectedTab) {
                     0 -> {
-                        // Dashboard Content
                         item {
-                            AnimatedStatsGrid(
+                            StatsSection(
                                 totalTenants = tenants.size,
                                 occupiedRooms = rooms.count { it.statusKamar.lowercase() == "terisi" },
                                 totalRooms = rooms.size,
@@ -113,26 +93,24 @@ fun HomeScreen(
                         }
 
                         item {
-                            FloatingQuickActions(navController)
+                            QuickActionsSection(navController)
                         }
 
                         item {
-                            LiveActivityFeed(
+                            ActivityFeedSection(
                                 tenants = tenants.takeLast(5),
                                 payments = payments.takeLast(5)
                             )
                         }
                     }
                     1 -> {
-                        // Statistics Content
                         item {
-                            ChartSection(rooms)
+                            StatisticsSection(rooms)
                         }
                     }
                     2 -> {
-                        // Activity Timeline
                         item {
-                            ActivityTimeline(tenants, payments)
+                            ActivityTimelineSection(tenants, payments)
                         }
                     }
                 }
@@ -148,7 +126,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun AnimatedHeaderSection() {
+private fun HeaderSection() {
     var visible by remember { mutableStateOf(false) }
     val greeting = getGreeting()
 
@@ -176,7 +154,7 @@ fun AnimatedHeaderSection() {
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    ShimmeringText(
+                    Text(
                         text = "KostKita",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold
@@ -188,19 +166,12 @@ fun AnimatedHeaderSection() {
                     )
                 }
 
-                // Profile Avatar with ripple effect
+                // Profile Avatar
                 Box(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.secondary
-                                )
-                            )
-                        )
+                        .background(MaterialTheme.colorScheme.primary)
                         .clickable { /* Profile */ },
                     contentAlignment = Alignment.Center
                 ) {
@@ -216,7 +187,35 @@ fun AnimatedHeaderSection() {
 }
 
 @Composable
-fun AnimatedTabItem(title: String, isSelected: Boolean) {
+private fun TabSection(
+    selectedTab: Int,
+    tabs: List<String>,
+    onTabSelected: (Int) -> Unit
+) {
+    ScrollableTabRow(
+        selectedTabIndex = selectedTab,
+        modifier = Modifier.padding(vertical = 16.dp),
+        edgePadding = 16.dp,
+        containerColor = Color.Transparent,
+        divider = {}
+    ) {
+        tabs.forEachIndexed { index, title ->
+            Tab(
+                selected = selectedTab == index,
+                onClick = { onTabSelected(index) },
+                modifier = Modifier.padding(horizontal = 4.dp)
+            ) {
+                TabItem(
+                    title = title,
+                    isSelected = selectedTab == index
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TabItem(title: String, isSelected: Boolean) {
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 1f else 0.9f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
@@ -236,7 +235,7 @@ fun AnimatedTabItem(title: String, isSelected: Boolean) {
 }
 
 @Composable
-fun AnimatedStatsGrid(
+private fun StatsSection(
     totalTenants: Int,
     occupiedRooms: Int,
     totalRooms: Int,
@@ -283,7 +282,7 @@ fun AnimatedStatsGrid(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(stats.size) { index ->
-            AnimatedStatCard(
+            StatCard(
                 stat = stats[index],
                 index = index
             )
@@ -292,7 +291,7 @@ fun AnimatedStatsGrid(
 }
 
 @Composable
-fun AnimatedStatCard(stat: StatItem, index: Int) {
+private fun StatCard(stat: StatItem, index: Int) {
     var visible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -373,14 +372,7 @@ fun AnimatedStatCard(stat: StatItem, index: Int) {
 }
 
 @Composable
-fun FloatingQuickActions(navController: NavController) {
-    var expanded by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        delay(500)
-        expanded = true
-    }
-
+private fun QuickActionsSection(navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -401,97 +393,81 @@ fun FloatingQuickActions(navController: NavController) {
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.PersonAdd,
                 label = "Tambah\nPenghuni",
-                onClick = { navController.navigate(KostKitaScreens.TenantForm.route) },
-                delay = 0
+                onClick = { navController.navigate(KostKitaScreens.TenantForm.route) }
             )
 
             QuickActionButton(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.AddHome,
                 label = "Tambah\nKamar",
-                onClick = { navController.navigate(KostKitaScreens.RoomForm.route) },
-                delay = 100
+                onClick = { navController.navigate(KostKitaScreens.RoomForm.route) }
             )
 
             QuickActionButton(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.Receipt,
                 label = "Catat\nBayar",
-                onClick = { navController.navigate(KostKitaScreens.PaymentForm.route) },
-                delay = 200
+                onClick = { navController.navigate(KostKitaScreens.PaymentForm.route) }
             )
         }
     }
 }
 
 @Composable
-fun QuickActionButton(
+private fun QuickActionButton(
     modifier: Modifier = Modifier,
     icon: ImageVector,
     label: String,
-    onClick: () -> Unit,
-    delay: Int
+    onClick: () -> Unit
 ) {
-    var visible by remember { mutableStateOf(false) }
     var pressed by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        delay(delay.toLong())
-        visible = true
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = scaleIn() + fadeIn(),
+    Card(
+        onClick = {
+            pressed = true
+            onClick()
+        },
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (pressed) 0.dp else 4.dp,
+            pressedElevation = 0.dp
+        ),
         modifier = modifier
+            .fillMaxWidth()
+            .height(100.dp)
+            .scale(if (pressed) 0.95f else 1f)
     ) {
-        Card(
-            onClick = {
-                pressed = true
-                onClick()
-            },
-            shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = if (pressed) 0.dp else 4.dp,
-                pressedElevation = 0.dp
-            ),
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(100.dp)
-                .scale(if (pressed) 0.95f else 1f)
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(28.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
 }
 
 @Composable
-fun LiveActivityFeed(
+private fun ActivityFeedSection(
     tenants: List<Tenant>,
     payments: List<Payment>
 ) {
@@ -500,34 +476,14 @@ fun LiveActivityFeed(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Aktivitas Terkini",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+        Text(
+            text = "Aktivitas Terkini",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
 
-            // Live indicator
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                PulsingDot()
-                Text(
-                    text = "Live",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF10B981)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Activity cards with staggered animation
+        // Activity cards
         val activities = (tenants.map { ActivityData.Tenant(it) } +
                 payments.map { ActivityData.Payment(it) })
             .sortedByDescending {
@@ -539,10 +495,7 @@ fun LiveActivityFeed(
             .take(5)
 
         activities.forEachIndexed { index, activity ->
-            AnimatedActivityCard(
-                activity = activity,
-                index = index
-            )
+            ActivityCard(activity = activity, index = index)
             if (index < activities.lastIndex) {
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -551,7 +504,7 @@ fun LiveActivityFeed(
 }
 
 @Composable
-fun AnimatedActivityCard(
+private fun ActivityCard(
     activity: ActivityData,
     index: Int
 ) {
@@ -588,7 +541,7 @@ fun AnimatedActivityCard(
 }
 
 @Composable
-fun TenantActivityItem(tenant: Tenant) {
+private fun TenantActivityItem(tenant: Tenant) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -599,14 +552,7 @@ fun TenantActivityItem(tenant: Tenant) {
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.secondary
-                        )
-                    )
-                ),
+                .background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -641,7 +587,7 @@ fun TenantActivityItem(tenant: Tenant) {
 }
 
 @Composable
-fun PaymentActivityItem(payment: Payment) {
+private fun PaymentActivityItem(payment: Payment) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -707,15 +653,12 @@ fun PaymentActivityItem(payment: Payment) {
 }
 
 @Composable
-fun ChartSection(
-    rooms: List<Room>
-) {
+private fun StatisticsSection(rooms: List<Room>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        // Room occupancy chart
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp)
@@ -757,45 +700,13 @@ fun ChartSection(
                         percentage = (maintenance.toFloat() / rooms.size * 100).toInt()
                     )
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Visual bar chart
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(occupied.toFloat())
-                            .fillMaxHeight()
-                            .background(Color(0xFF10B981))
-                    )
-                    Box(
-                        modifier = Modifier
-                            .weight(available.toFloat())
-                            .fillMaxHeight()
-                            .background(Color(0xFF3B82F6))
-                    )
-                    if (maintenance > 0) {
-                        Box(
-                            modifier = Modifier
-                                .weight(maintenance.toFloat())
-                                .fillMaxHeight()
-                                .background(Color(0xFFF59E0B))
-                        )
-                    }
-                }
             }
         }
     }
 }
 
 @Composable
-fun StatisticItem(
+private fun StatisticItem(
     label: String,
     value: Int,
     color: Color,
@@ -832,7 +743,7 @@ fun StatisticItem(
 }
 
 @Composable
-fun ActivityTimeline(
+private fun ActivityTimelineSection(
     tenants: List<Tenant>,
     payments: List<Payment>
 ) {
@@ -848,7 +759,7 @@ fun ActivityTimeline(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Combine and sort all activities
+        // Simple timeline of recent activities
         val allActivities = buildList {
             tenants.forEach { tenant ->
                 add(TimelineEvent(
@@ -868,43 +779,28 @@ fun ActivityTimeline(
                     color = if (payment.statusPembayaran == "Lunas") Color(0xFF10B981) else MaterialTheme.colorScheme.error
                 ))
             }
-        }.sortedByDescending { it.timestamp }.take(10)
+        }.sortedByDescending { it.timestamp }.take(5)
 
-        allActivities.forEachIndexed { index, event ->
-            TimelineItem(
-                event = event,
-                isFirst = index == 0,
-                isLast = index == allActivities.lastIndex
-            )
+        allActivities.forEach { event ->
+            TimelineItem(event = event)
         }
     }
 }
 
 @Composable
-fun TimelineItem(
-    event: TimelineEvent,
-    isFirst: Boolean,
-    isLast: Boolean
-) {
-    Row(
+private fun TimelineItem(event: TimelineEvent) {
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        // Timeline line and dot
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.width(40.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!isFirst) {
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .height(20.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                )
-            }
-
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -920,59 +816,32 @@ fun TimelineItem(
                 )
             }
 
-            if (!isLast) {
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .weight(1f)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = event.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
                 )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Card(
-            modifier = Modifier
-                .weight(1f)
-                .padding(bottom = if (!isLast) 8.dp else 0.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = event.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = formatDateRelative(event.timestamp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
                 Text(
                     text = event.description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            Text(
+                text = formatDateRelative(event.timestamp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 @Composable
-fun FloatingBottomNavigation(
+private fun FloatingBottomNavigation(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
@@ -1022,7 +891,7 @@ fun FloatingBottomNavigation(
 }
 
 @Composable
-fun NavItem(
+private fun NavItem(
     icon: ImageVector,
     label: String,
     selected: Boolean,
@@ -1030,9 +899,7 @@ fun NavItem(
 ) {
     val scale by animateFloatAsState(
         targetValue = if (selected) 1.1f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy
-        )
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
     )
 
     IconButton(
@@ -1054,61 +921,6 @@ fun NavItem(
             )
         }
     }
-}
-
-@Composable
-fun ShimmeringText(
-    text: String,
-    style: androidx.compose.ui.text.TextStyle,
-    fontWeight: FontWeight
-) {
-    val infiniteTransition = rememberInfiniteTransition()
-    val shimmerTranslate by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        )
-    )
-
-    Text(
-        text = text,
-        style = style,
-        fontWeight = fontWeight,
-        modifier = Modifier.graphicsLayer {
-            Brush.linearGradient(
-                colors = listOf(
-                    Color.Black,
-                    Color.Black.copy(alpha = 0.7f),
-                    Color.Black
-                ),
-                start = Offset(shimmerTranslate - 1000f, 0f),
-                end = Offset(shimmerTranslate, 0f)
-            )
-        }
-    )
-}
-
-@Composable
-fun PulsingDot() {
-    val infiniteTransition = rememberInfiniteTransition()
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
-    Box(
-        modifier = Modifier
-            .size(8.dp)
-            .scale(scale)
-            .clip(CircleShape)
-            .background(Color(0xFF10B981))
-    )
 }
 
 // Data classes
@@ -1134,7 +946,7 @@ data class TimelineEvent(
 )
 
 // Helper functions
-fun getGreeting(): String {
+private fun getGreeting(): String {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     return when {
         hour < 12 -> "Selamat Pagi ☀️"
@@ -1144,19 +956,19 @@ fun getGreeting(): String {
     }
 }
 
-fun calculateMonthlyIncome(payments: List<Payment>): Long {
+private fun calculateMonthlyIncome(payments: List<Payment>): Long {
     val currentMonth = SimpleDateFormat("MMMM yyyy", Locale("id", "ID")).format(Date())
     return payments
         .filter { it.bulanTahun.contains(currentMonth) && it.statusPembayaran == "Lunas" }
         .sumOf { it.jumlahBayar.toLong() }
 }
 
-fun formatRupiah(amount: Int): String {
+private fun formatRupiah(amount: Int): String {
     val format = NumberFormat.getCurrencyInstance(Locale("id", "ID"))
     return format.format(amount)
 }
 
-fun formatRupiahCompact(amount: Long): String {
+private fun formatRupiahCompact(amount: Long): String {
     return when {
         amount >= 1_000_000_000 -> "Rp ${amount / 1_000_000_000}M"
         amount >= 1_000_000 -> "Rp ${amount / 1_000_000}jt"
@@ -1165,7 +977,7 @@ fun formatRupiahCompact(amount: Long): String {
     }
 }
 
-fun formatDateRelative(timestamp: Long): String {
+private fun formatDateRelative(timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
     val days = diff / (1000 * 60 * 60 * 24)
